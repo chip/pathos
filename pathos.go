@@ -60,7 +60,7 @@ type updatePathListMsg int
 // TODO Update path
 // TODO Save to colon-delimited file pathos.env (proper name?)
 // TODO Make listHeight configurable
-const listHeight = 25
+const listHeight = 40
 
 var (
 	titleStyle        = lipgloss.NewStyle().MarginLeft(2)
@@ -103,10 +103,11 @@ type model struct {
 	choice   string
 	quitting bool
 
-	textInput textinput.Model
-	msg       tea.Msg
-	err       error
-	state     sessionState
+	textInput      textinput.Model
+	msg            tea.Msg
+	err            error
+	state          sessionState
+	showPagination bool
 }
 
 type errMsg error
@@ -119,20 +120,36 @@ func savePathCmd(cursor int, path string) tea.Cmd {
 
 func deletePathCmd(index int) tea.Cmd {
 	return func() tea.Msg {
-		return deletePathMsg(index)
+		log.Println("index:", index)
+		// err := deletePath(index)
+		id := index
+		db.Delete(&path, id)
+		// if err != nil {
+		// 	return errMsg(err)
+		// }
+		// return updatePathListMsg(id)
+		return deletePathMsg(id)
 	}
 }
 
-func (m model) deletePath(id int) string {
-	log.Println("id:", id)
-	// log.Printf("%# v", pretty.Formatter(m))
-	// log.Printf("cursor: %+v", m.list.Cursor())
-	// m.list.RemoveItem(msg)
-	// m.savePaths()
-	db.Delete(&path, id)
-
-	return m.list.View()
-}
+// func deleteProjectCmd(id uint, pr *project.GormRepository) tea.Cmd {
+// 	return func() tea.Msg {
+// 		err := pr.DeleteProject(id)
+// 		if err != nil {
+// 			return errMsg{err}
+// 		}
+// 		return updateProjectListMsg{}
+// 	}
+// }
+// func (m model) deletePath(id int) string {
+// 	log.Println("id:", id)
+// 	// log.Printf("%# v", pretty.Formatter(m))
+// 	// log.Printf("cursor: %+v", m.list.Cursor())
+// 	// m.list.RemoveItem(msg)
+// 	// m.savePaths()
+// 	db.Delete(&path, id)
+// 	// return m.list.View()
+// }
 
 // projectsToItems convert []model.Project to []list.Item
 func pathsToItems() []list.Item {
@@ -182,8 +199,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case deletePathMsg:
 		log.Println("deletePathMsg recd", msg)
-		m.deletePath(int(msg))
-		// m.list.RemoveItem(int(msg))
+		// m.deletePath(int(msg))
+		m.list.RemoveItem(int(msg))
 		// savePaths(m)
 		return m, nil
 
@@ -226,16 +243,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.state = inputView
 
-		case "d":
+		case "D":
 			// s := log.Sprintf("state=%d inputView=%d", m.state, inputView)
 			// log.Println(s)
+			log.Println("case d")
 			if m.state == listView {
 				i := m.list.Index()
-				log.Println("i:", i)
+				// log.Println("i:", i)
 				cmds = append(cmds, deletePathCmd(i))
 				// return m, nil
 			}
-
 		}
 
 	// We handle errors just like any other message
@@ -294,9 +311,9 @@ func initialModel() model {
 	// Get all records
 	// var paths []string
 	result := db.Find(&paths)
-	fmt.Println("Rows affected:", result.RowsAffected)
-	fmt.Println("result:", result)
-	fmt.Printf("paths: %+ v", paths)
+	// fmt.Println("Rows affected:", result.RowsAffected)
+	// fmt.Println("result:", result)
+	// fmt.Printf("paths: %+ v", paths)
 	if result.Error != nil {
 		log.Fatal(result.Error)
 	}
@@ -314,14 +331,15 @@ func initialModel() model {
 	l.SetShowStatusBar(true)
 	l.SetFilteringEnabled(false)
 	l.Styles.Title = titleStyle
-	l.Styles.PaginationStyle = paginationStyle
+	// l.Styles.PaginationStyle = paginationStyle
 	l.Styles.HelpStyle = helpStyle
 
 	m := model{
-		list:      l,
-		textInput: ti,
-		err:       nil,
-		state:     listView,
+		list:           l,
+		textInput:      ti,
+		err:            nil,
+		state:          listView,
+		showPagination: false,
 	}
 
 	return m
