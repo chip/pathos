@@ -19,8 +19,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
-	// scribble "github.com/nanobox-io/golang-scribble"
-	// scribble "github.com/nanobox-io/golang-scribble"
 	// "github.com/spf13/viper"
 	// "github.com/kr/pretty"
 	// github.com/davecgh/go-spew/spew
@@ -85,7 +83,7 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 	if !ok {
 		return
 	}
-	str := fmt.Sprintf("%d. %s", index+1, i)
+	str := string(i)
 
 	fn := itemStyle.Render
 	if index == m.Index() {
@@ -118,40 +116,18 @@ func savePathCmd(cursor int, path string) tea.Cmd {
 	}
 }
 
-func deletePathCmd(index int) tea.Cmd {
+func deletePathCmd(id int) tea.Cmd {
 	return func() tea.Msg {
-		log.Println("index:", index)
-		// err := deletePath(index)
-		id := index
-		db.Delete(&path, id)
-		// if err != nil {
-		// 	return errMsg(err)
-		// }
-		// return updatePathListMsg(id)
+		log.Println("id:", id)
+		result := db.Delete(&path, id)
+		// fmt.Println("closure for deletePathCmd result:", result)
+		if result.Error != nil {
+			return errMsg(result.Error)
+		}
 		return deletePathMsg(id)
 	}
 }
 
-// func deleteProjectCmd(id uint, pr *project.GormRepository) tea.Cmd {
-// 	return func() tea.Msg {
-// 		err := pr.DeleteProject(id)
-// 		if err != nil {
-// 			return errMsg{err}
-// 		}
-// 		return updateProjectListMsg{}
-// 	}
-// }
-// func (m model) deletePath(id int) string {
-// 	log.Println("id:", id)
-// 	// log.Printf("%# v", pretty.Formatter(m))
-// 	// log.Printf("cursor: %+v", m.list.Cursor())
-// 	// m.list.RemoveItem(msg)
-// 	// m.savePaths()
-// 	db.Delete(&path, id)
-// 	// return m.list.View()
-// }
-
-// projectsToItems convert []model.Project to []list.Item
 func pathsToItems() []list.Item {
 	result := db.Find(&paths)
 	if result.Error != nil {
@@ -161,6 +137,7 @@ func pathsToItems() []list.Item {
 	items := make([]list.Item, len(paths))
 	for i, path := range paths {
 		items[i] = list.Item(item(path.Name))
+
 	}
 	return items
 }
@@ -248,8 +225,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// log.Println(s)
 			log.Println("case d")
 			if m.state == listView {
+				si, ok := m.list.SelectedItem().(item)
+				log.Printf("si: %+v", si)
+				log.Printf("ok: %v", ok)
+
+				item := m.list.SelectedItem()
+				log.Printf("SelectedItem: %+v", item)
+
 				i := m.list.Index()
-				// log.Println("i:", i)
+				log.Printf("i: %v", i)
+
 				cmds = append(cmds, deletePathCmd(i))
 				// return m, nil
 			}
@@ -285,7 +270,7 @@ func (m model) View() string {
 	}
 }
 
-func loadPaths(db *gorm.DB) {
+func createPaths(db *gorm.DB) {
 	PATH := os.Getenv("PATH")
 	for _, name := range strings.Split(PATH, ":") {
 		path := Path{Name: name}
@@ -305,24 +290,7 @@ func initialModel() model {
 	ti.CharLimit = 156
 	ti.Width = 50
 
-	// paths := getPaths()
-	// TODO How to extend length?
-	// var items []list.Item
-	// Get all records
-	// var paths []string
-	result := db.Find(&paths)
-	// fmt.Println("Rows affected:", result.RowsAffected)
-	// fmt.Println("result:", result)
-	// fmt.Printf("paths: %+ v", paths)
-	if result.Error != nil {
-		log.Fatal(result.Error)
-	}
 	items := pathsToItems()
-	// for _, p := range paths {
-	// 	// items[i] = item(v)
-	// 	fmt.Println("Name:", p.Name)
-	// 	items = append(items, item(p.Name))
-	// }
 	// TODO Make configurable
 	const defaultWidth = 20
 
@@ -375,11 +343,11 @@ func main() {
 		log.Fatalf("error opening file: %v", err)
 	}
 	defer f.Close()
-
 	log.SetOutput(f)
 
+	// DB init
 	db = openDB()
-	loadPaths(db)
+	createPaths(db)
 
 	if err := tea.NewProgram(initialModel()).Start(); err != nil {
 		fmt.Println("Error running program:", err)
