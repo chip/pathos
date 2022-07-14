@@ -145,10 +145,8 @@ func (m model) Init() tea.Cmd {
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	// log.Printf("Update() msg: %#v\n", msg)
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
-	// tea.KeyMsg.String()
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -162,14 +160,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case savePathMsg:
 		log.Println("SavePathMsg recd", msg)
-		// if s != "" {
 		// TODO insert at what index???
 		m.list.InsertItem(msg.cursor, item(msg.path))
 		return m, nil
 
 	case deletePathMsg:
 		log.Println("deletePathMsg recd", msg)
-		// m.deletePath(int(msg))
 		m.list.RemoveItem(int(msg))
 		return m, nil
 
@@ -188,7 +184,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "enter":
 			if m.state == inputView {
-				if m.textInput.Value() == "" {
+				text := strings.TrimSpace(m.textInput.Value())
+				if text == "" {
 					log.Println("Please enter a pathname")
 				} else {
 					cursor := m.list.Cursor()
@@ -215,6 +212,21 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				i := m.list.Index()
 				cmds = append(cmds, deletePathCmd(i))
 			}
+
+		case "S":
+			log.Println("case S")
+			result := db.Find(&paths)
+			log.Println("result:", result)
+			s := []string{}
+			for _, path := range paths {
+				log.Println(path.Name)
+				s = append(s, path.Name)
+			}
+			joinedPaths := strings.Join(s, ":")
+			log.Println(joinedPaths)
+			// TODO Save joinedPaths to file
+			return m, tea.Quit
+
 		}
 
 	// We handle errors just like any other message
