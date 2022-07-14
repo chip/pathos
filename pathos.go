@@ -118,9 +118,7 @@ func savePathCmd(cursor int, path string) tea.Cmd {
 
 func deletePathCmd(id int) tea.Cmd {
 	return func() tea.Msg {
-		log.Println("id:", id)
 		result := db.Delete(&path, id)
-		// fmt.Println("closure for deletePathCmd result:", result)
 		if result.Error != nil {
 			return errMsg(result.Error)
 		}
@@ -143,7 +141,7 @@ func pathsToItems() []list.Item {
 }
 
 func (m model) Init() tea.Cmd {
-	return nil
+	return textinput.Blink
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -167,18 +165,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// if s != "" {
 		// TODO insert at what index???
 		m.list.InsertItem(msg.cursor, item(msg.path))
-		m.savePaths()
-		// m.list.SetItem()
-		// m.list.InsertItem(i, s)
-		// value := m.textInput.Value()
-		// log.Println("text value: ", value)
 		return m, nil
 
 	case deletePathMsg:
 		log.Println("deletePathMsg recd", msg)
 		// m.deletePath(int(msg))
 		m.list.RemoveItem(int(msg))
-		// savePaths(m)
 		return m, nil
 
 	case tea.KeyMsg:
@@ -197,7 +189,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter":
 			if m.state == inputView {
 				cursor := m.list.Cursor()
-				// log.Println("[cursor] ", cursor)
 				value := m.textInput.Value()
 				cmds = append(cmds, savePathCmd(cursor, value))
 				m.state = listView
@@ -208,35 +199,22 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if ok {
 					m.choice = string(i)
 				}
-				// return m, tea.Quit
 			}
 
-		case "n":
-			// m.textInput.SetValue("")
+		case "N":
 			if m.textInput.Focused() {
-				log.Println("focused")
+				log.Println("Focused()")
 			} else {
-				log.Println("NOT focused")
+				log.Println("NOT Focused()")
 			}
 			m.state = inputView
+			return m, nil
 
 		case "D":
-			// s := log.Sprintf("state=%d inputView=%d", m.state, inputView)
-			// log.Println(s)
 			log.Println("case d")
 			if m.state == listView {
-				si, ok := m.list.SelectedItem().(item)
-				log.Printf("si: %+v", si)
-				log.Printf("ok: %v", ok)
-
-				item := m.list.SelectedItem()
-				log.Printf("SelectedItem: %+v", item)
-
 				i := m.list.Index()
-				log.Printf("i: %v", i)
-
 				cmds = append(cmds, deletePathCmd(i))
-				// return m, nil
 			}
 		}
 
@@ -245,13 +223,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.err = msg
 		return m, nil
 	}
-	// log.Println("m.state:", m.state, "msg:", msg)
 	// Update different view states
 	switch m.state {
 	case inputView:
+		log.Println("inputView")
 		m.textInput, cmd = m.textInput.Update(msg)
-		// m.textInput.SetValue("")
 	case listView:
+		log.Println("listView")
 		m.list, cmd = m.list.Update(msg)
 	}
 	cmds = append(cmds, cmd)
@@ -285,7 +263,9 @@ func initialModel() model {
 	// Setup textinput
 	ti := textinput.New()
 	ti.Prompt = "Enter directory: "
-	ti.Placeholder = "/usr/bin"
+	ti.Placeholder = "/"
+	ti.SetValue("")
+	ti.Blink()
 	ti.Focus()
 	ti.CharLimit = 156
 	ti.Width = 50
@@ -311,10 +291,6 @@ func initialModel() model {
 	}
 
 	return m
-}
-
-func (m model) savePaths() (bool, error) {
-	return true, nil
 }
 
 func NewPathPrompt() string {
