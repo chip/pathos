@@ -188,10 +188,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "enter":
 			if m.state == inputView {
-				cursor := m.list.Cursor()
-				value := m.textInput.Value()
-				cmds = append(cmds, savePathCmd(cursor, value))
-				m.state = listView
+				if m.textInput.Value() == "" {
+					log.Println("Please enter a pathname")
+				} else {
+					cursor := m.list.Cursor()
+					value := m.textInput.Value()
+					cmds = append(cmds, savePathCmd(cursor, value))
+					m.state = listView
+				}
 
 			} else {
 				i, ok := m.list.SelectedItem().(item)
@@ -202,11 +206,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case "N":
-			if m.textInput.Focused() {
-				log.Println("Focused()")
-			} else {
-				log.Println("NOT Focused()")
-			}
 			m.state = inputView
 			return m, nil
 
