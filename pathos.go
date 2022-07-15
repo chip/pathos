@@ -1,12 +1,6 @@
 package main
 
 import (
-	"bufio"
-
-	// "github.com/pkg/errors"
-
-	// "gorm.io/gorm"
-	// "gorm.io/driver/sqlite"
 	"fmt"
 	"io"
 	"log"
@@ -17,23 +11,8 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
-	// "github.com/spf13/viper"
 	// "github.com/kr/pretty"
-	// github.com/davecgh/go-spew/spew
 )
-
-var db *gorm.DB
-
-type Path struct {
-	gorm.Model
-	// Index int
-	Name string
-}
-
-var path Path
-var paths []Path
 
 // this is an enum for Go
 type sessionState uint
@@ -48,7 +27,9 @@ type savePathMsg struct {
 	cursor int
 }
 type deletePathMsg int
-type updatePathListMsg int
+type saveShellSourceMsg struct {
+	m model
+}
 
 // TODO Highlight duplicates in blue
 // TODO Highlight non-existent paths in red
@@ -75,9 +56,21 @@ func (i item) FilterValue() string { return "" }
 
 type itemDelegate struct{}
 
-func (d itemDelegate) Height() int                               { return 1 }
-func (d itemDelegate) Spacing() int                              { return 0 }
-func (d itemDelegate) Update(msg tea.Msg, m *list.Model) tea.Cmd { return nil }
+func (d itemDelegate) Height() int  { return 1 }
+func (d itemDelegate) Spacing() int { return 0 }
+func (d itemDelegate) Update(msg tea.Msg, m *list.Model) tea.Cmd {
+	// log.Println("")
+	// log.Printf("itemDelegate Update m.Cursor: %+v", m.Cursor())
+	// log.Printf("itemDelegate Update m.SelectedItem: %+v", m.SelectedItem())
+	// log.Printf("itemDelegate Update m.Index(): %+v", m.Index())
+	// log.Printf("itemDelegate Update m.Items(): %+v", m.Items())
+	// switch msg {
+	// default:
+	// 	log.Printf("itemDelegate Update %+v", msg)
+	//
+	// }
+	return nil
+}
 func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list.Item) {
 	i, ok := listItem.(item)
 	if !ok {
@@ -116,28 +109,40 @@ func savePathCmd(cursor int, path string) tea.Cmd {
 	}
 }
 
-func deletePathCmd(id int) tea.Cmd {
+func deletePathCmd(m model, id int) tea.Cmd {
 	return func() tea.Msg {
-		result := db.Delete(&path, id)
-		if result.Error != nil {
-			return errMsg(result.Error)
-		}
+		m.list.RemoveItem(id)
 		return deletePathMsg(id)
 	}
 }
 
-func pathsToItems() []list.Item {
-	result := db.Find(&paths)
-	if result.Error != nil {
-		log.Println("Unable to convert paths to items for display")
-		log.Fatal(result.Error)
+func saveShellSourceCmd(m model) tea.Cmd {
+	return func() tea.Msg {
+		return saveShellSourceMsg{m: m}
 	}
-	items := make([]list.Item, len(paths))
-	for i, path := range paths {
-		items[i] = list.Item(item(path.Name))
+}
 
+func saveShellSource(m model) (int, error) {
+	s := []string{}
+	for _, listItem := range m.list.Items() {
+		i, _ := listItem.(item)
+		path := string(i)
+		// log.Printf("element: %s", path)
+		if path != "" {
+			s = append(s, path)
+		}
 	}
-	return items
+	data := "export PATH=" + strings.Join(s, ":")
+	// log.Println(data)
+	filename := "pathos.sh"
+
+	file, err := os.Create(filename)
+	if err != nil {
+		return -1, err
+	}
+	defer file.Close()
+
+	return file.WriteString(data)
 }
 
 func (m model) Init() tea.Cmd {
@@ -153,13 +158,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.list.SetWidth(msg.Width)
 		return m, nil
 
-	case updatePathListMsg:
-		items := pathsToItems()
-		m.list.SetItems(items)
-		m.state = listView
-
 	case savePathMsg:
-		log.Println("SavePathMsg recd", msg)
+		log.Println("savePathMsg recd:", msg, " path:", item(msg.path))
 		// TODO insert at what index???
 		m.list.InsertItem(msg.cursor, item(msg.path))
 		return m, nil
@@ -169,14 +169,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.list.RemoveItem(int(msg))
 		return m, nil
 
+	case saveShellSourceMsg:
+		log.Println("saveShellSourceMsg recd", msg)
+		saveShellSource(m)
+		return m, nil
+
 	case tea.KeyMsg:
 		switch keypress := msg.String(); keypress {
-		case "Z":
-			result := db.Find(&paths)
-			if result.Error != nil {
-				log.Println(result.Error)
-			}
-			log.Println("# paths:", len(paths))
 
 		case "ctrl+c":
 			m.quitting = true
@@ -185,9 +184,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter":
 			if m.state == inputView {
 				text := strings.TrimSpace(m.textInput.Value())
-				if text == "" {
-					log.Println("Please enter a pathname")
-				} else {
+				if text != "" {
 					cursor := m.list.Cursor()
 					value := m.textInput.Value()
 					cmds = append(cmds, savePathCmd(cursor, value))
@@ -210,22 +207,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			log.Println("case d")
 			if m.state == listView {
 				i := m.list.Index()
-				cmds = append(cmds, deletePathCmd(i))
+				cmds = append(cmds, deletePathCmd(m, i))
 			}
 
 		case "S":
 			log.Println("case S")
-			result := db.Find(&paths)
-			log.Println("result:", result)
-			s := []string{}
-			for _, path := range paths {
-				log.Println(path.Name)
-				s = append(s, path.Name)
-			}
-			joinedPaths := strings.Join(s, ":")
-			log.Println(joinedPaths)
-			// TODO Save joinedPaths to file
-			return m, tea.Quit
+			cmds = append(cmds, saveShellSourceCmd(m))
+			// return m, tea.Quit
 
 		}
 
@@ -259,19 +247,17 @@ func (m model) View() string {
 	}
 }
 
-func createPaths(db *gorm.DB) {
+func createPaths() []list.Item {
 	PATH := os.Getenv("PATH")
-	for _, name := range strings.Split(PATH, ":") {
-		path := Path{Name: name}
-		result := db.Create(&path)
-		if result.Error != nil {
-			log.Printf("oops! %+v", result.Error)
-		}
+	paths := strings.Split(PATH, ":")
+	items := make([]list.Item, len(paths))
+	for i, path := range paths {
+		items[i] = item(path)
 	}
+	return items
 }
 
-func initialModel() model {
-	// Setup textinput
+func setupTextInput() textinput.Model {
 	ti := textinput.New()
 	ti.Prompt = "Enter directory: "
 	ti.Placeholder = "/"
@@ -281,8 +267,13 @@ func initialModel() model {
 	ti.CharLimit = 156
 	ti.Width = 50
 
-	items := pathsToItems()
-	// TODO Make configurable
+	return ti
+}
+
+func initialModel() model {
+	ti := setupTextInput()
+
+	items := createPaths()
 	const defaultWidth = 20
 
 	l := list.New(items, itemDelegate{}, defaultWidth, listHeight)
@@ -290,7 +281,6 @@ func initialModel() model {
 	l.SetShowStatusBar(true)
 	l.SetFilteringEnabled(false)
 	l.Styles.Title = titleStyle
-	// l.Styles.PaginationStyle = paginationStyle
 	l.Styles.HelpStyle = helpStyle
 
 	m := model{
@@ -304,53 +294,18 @@ func initialModel() model {
 	return m
 }
 
-func NewPathPrompt() string {
-	var text string
-	fmt.Println("What directory would you like added to your PATH?")
-	scanner := bufio.NewScanner(os.Stdin)
-	scanner.Scan()
-	text = scanner.Text()
-	return text
-}
-
-func createLog() {
-	f, err := os.OpenFile("testlogfile", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-	if err != nil {
-		log.Fatalf("error opening file: %v", err)
-	}
-	defer f.Close()
-
-	log.SetOutput(f)
-}
-
 func main() {
-	// createLog()
 	f, err := os.OpenFile("testlogfile", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		log.Fatalf("error opening file: %v", err)
 	}
 	defer f.Close()
-	log.SetOutput(f)
 
-	// DB init
-	db = openDB()
-	createPaths(db)
+	log.SetOutput(f)
+	log.Println("after createLog")
 
 	if err := tea.NewProgram(initialModel()).Start(); err != nil {
 		fmt.Println("Error running program:", err)
 		os.Exit(1)
 	}
-}
-
-func openDB() *gorm.DB {
-	// db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
-	if err != nil {
-		// panic("failed to connect database")
-		log.Fatalf("unable to open in-memory SQLite DB: %v", err)
-	}
-
-	// Migrate the schema
-	db.AutoMigrate(&Path{})
-	return db
 }
