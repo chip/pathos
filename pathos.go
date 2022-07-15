@@ -295,14 +295,13 @@ func initialModel() model {
 }
 
 func main() {
-	f, err := os.OpenFile("testlogfile", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	f, err := os.OpenFile("debug.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		log.Fatalf("error opening file: %v", err)
 	}
 	defer f.Close()
 
 	log.SetOutput(f)
-	log.Println("after createLog")
 
 	if err := tea.NewProgram(initialModel()).Start(); err != nil {
 		fmt.Println("Error running program:", err)
