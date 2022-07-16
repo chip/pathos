@@ -13,6 +13,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+var duplicatePaths map[string]struct{}
+
 // this is an enum for Go
 type sessionState uint
 
@@ -30,7 +32,6 @@ type saveShellSourceMsg struct {
 	m model
 }
 
-// TODO Highlight duplicates in blue
 // TODO Show color legend
 const listHeight = 20
 
@@ -39,7 +40,9 @@ var (
 	itemStyle                        = lipgloss.NewStyle().PaddingLeft(4)
 	selectedItemStyle                = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("170")) // Xterm Orchid
 	doesNotExistItemStyle            = lipgloss.NewStyle().PaddingLeft(4).Foreground(lipgloss.Color("160")) // Xterm Red3
-	selectedAndDoesNotExistItemStyle = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("160")) // Xterm Orchid
+	selectedAndDoesNotExistItemStyle = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("160"))
+	duplicateItemStyle               = lipgloss.NewStyle().PaddingLeft(4).Foreground(lipgloss.Color("123")) // Xterm DarkSlateGray1
+	selectedAndDuplicateItemStyle    = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("123"))
 	paginationStyle                  = list.DefaultStyles().PaginationStyle.PaddingLeft(4)
 	helpStyle                        = list.DefaultStyles().HelpStyle.PaddingLeft(4).PaddingBottom(1)
 	quitTextStyle                    = lipgloss.NewStyle().Margin(1, 0, 2, 4)
@@ -66,12 +69,16 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 
 	if !directoryExists(str) {
 		fn = doesNotExistItemStyle.Render
+	} else if duplicatePath(str) {
+		fn = duplicateItemStyle.Render
 	}
 
 	if index == m.Index() {
 		fn = func(s string) string {
 			if directoryExists(s) {
 				return selectedItemStyle.Render("> " + s)
+			} else if duplicatePath(str) {
+				return selectedAndDuplicateItemStyle.Render("> " + s)
 			} else {
 				return selectedAndDoesNotExistItemStyle.Render("> " + s)
 			}
@@ -157,10 +164,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case savePathMsg:
 		m.list.InsertItem(msg.cursor, item(msg.path))
+		duplicatePaths = findDuplicatePaths(m.list.Items())
 		return m, nil
 
 	case deletePathMsg:
 		m.list.RemoveItem(int(msg))
+		duplicatePaths = findDuplicatePaths(m.list.Items())
 		return m, nil
 
 	case saveShellSourceMsg:
@@ -233,9 +242,13 @@ func (m model) View() string {
 	}
 }
 
-func createPaths() []list.Item {
+func getPaths() []string {
 	PATH := os.Getenv("PATH")
-	paths := strings.Split(PATH, ":")
+	return strings.Split(PATH, ":")
+}
+
+func createPaths() []list.Item {
+	paths := getPaths()
 	items := make([]list.Item, len(paths))
 	for i, path := range paths {
 		items[i] = item(path)
@@ -260,6 +273,8 @@ func initialModel() model {
 	ti := setupTextInput()
 
 	items := createPaths()
+	duplicatePaths = findDuplicatePaths(items)
+
 	const defaultWidth = 20
 
 	l := list.New(items, itemDelegate{}, defaultWidth, listHeight)
@@ -278,6 +293,34 @@ func initialModel() model {
 	}
 
 	return m
+}
+
+func duplicatePath(path string) bool {
+	_, isPresent := duplicatePaths[path]
+	return isPresent
+}
+
+func findDuplicatePaths(items []list.Item) map[string]struct{} {
+	pathMap := make(map[string]int)
+	duplicates := make(map[string]struct{})
+
+	for _, listItem := range items {
+		i, ok := listItem.(item)
+		if ok {
+			path := string(i)
+			if value, ok := pathMap[path]; ok {
+				pathMap[path] = value + 1
+			} else {
+				pathMap[path] = 0
+			}
+		}
+	}
+	for path, count := range pathMap {
+		if count > 1 {
+			duplicates[path] = struct{}{}
+		}
+	}
+	return duplicates
 }
 
 func main() {
