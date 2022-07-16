@@ -33,9 +33,6 @@ type saveShellSourceMsg struct {
 
 // TODO Highlight duplicates in blue
 // TODO Show color legend
-// TODO Auto-removal for duplicates, non-existent paths, or both? (could be configurable)
-// TODO Insert new path at specific location
-// TODO Update path
 const listHeight = 20
 
 var (
@@ -130,13 +127,11 @@ func saveShellSource(m model) (int, error) {
 	for _, listItem := range m.list.Items() {
 		i, _ := listItem.(item)
 		path := string(i)
-		// log.Printf("element: %s", path)
 		if path != "" {
 			s = append(s, path)
 		}
 	}
 	data := "export PATH=" + strings.Join(s, ":")
-	// log.Println(data)
 	filename := "pathos.sh"
 
 	file, err := os.Create(filename)
@@ -162,8 +157,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case savePathMsg:
-		log.Println("savePathMsg recd:", msg, " path:", item(msg.path))
-		// TODO insert at what index???
 		m.list.InsertItem(msg.cursor, item(msg.path))
 		return m, nil
 
@@ -172,7 +165,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case saveShellSourceMsg:
-		log.Println("saveShellSourceMsg recd", msg)
 		saveShellSource(m)
 		return m, nil
 
@@ -206,16 +198,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case "D":
-			log.Println("case d")
 			if m.state == listView {
 				i := m.list.Index()
 				cmds = append(cmds, deletePathCmd(m, i))
 			}
 
 		case "S":
-			log.Println("case S")
 			cmds = append(cmds, saveShellSourceCmd(m))
-			// return m, tea.Quit
 
 		}
 
@@ -227,10 +216,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Update different view states
 	switch m.state {
 	case inputView:
-		log.Println("inputView")
 		m.textInput, cmd = m.textInput.Update(msg)
 	case listView:
-		log.Println("listView")
 		m.list, cmd = m.list.Update(msg)
 	}
 	cmds = append(cmds, cmd)
@@ -241,10 +228,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m model) View() string {
 	switch m.state {
 	case inputView:
-		// log.Println("inputView")
 		return m.textInput.View()
 	default:
-		// log.Println("listView")
 		return m.list.View()
 	}
 }
