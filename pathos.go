@@ -116,7 +116,6 @@ func savePathCmd(cursor int, path string) tea.Cmd {
 
 func deletePathCmd(m model, id int) tea.Cmd {
 	return func() tea.Msg {
-		m.list.RemoveItem(id)
 		return deletePathMsg(id)
 	}
 }
@@ -170,7 +169,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case deletePathMsg:
-		log.Println("deletePathMsg recd", msg)
 		m.list.RemoveItem(int(msg))
 		return m, nil
 
