@@ -32,22 +32,22 @@ type saveShellSourceMsg struct {
 }
 
 // TODO Highlight duplicates in blue
-// TODO Highlight non-existent paths in red
 // TODO Show color legend
 // TODO Auto-removal for duplicates, non-existent paths, or both? (could be configurable)
 // TODO Insert new path at specific location
 // TODO Update path
-// TODO Save to colon-delimited file pathos.env (proper name?)
 // TODO Make listHeight configurable
 const listHeight = 40
 
 var (
-	titleStyle        = lipgloss.NewStyle().MarginLeft(2)
-	itemStyle         = lipgloss.NewStyle().PaddingLeft(4)
-	selectedItemStyle = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("170"))
-	paginationStyle   = list.DefaultStyles().PaginationStyle.PaddingLeft(4)
-	helpStyle         = list.DefaultStyles().HelpStyle.PaddingLeft(4).PaddingBottom(1)
-	quitTextStyle     = lipgloss.NewStyle().Margin(1, 0, 2, 4)
+	titleStyle                       = lipgloss.NewStyle().MarginLeft(2)
+	itemStyle                        = lipgloss.NewStyle().PaddingLeft(4)
+	selectedItemStyle                = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("170")) // Xterm Orchid
+	doesNotExistItemStyle            = lipgloss.NewStyle().PaddingLeft(4).Foreground(lipgloss.Color("160")) // Xterm Red3
+	selectedAndDoesNotExistItemStyle = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("160")) // Xterm Orchid
+	paginationStyle                  = list.DefaultStyles().PaginationStyle.PaddingLeft(4)
+	helpStyle                        = list.DefaultStyles().HelpStyle.PaddingLeft(4).PaddingBottom(1)
+	quitTextStyle                    = lipgloss.NewStyle().Margin(1, 0, 2, 4)
 )
 
 type item string
@@ -56,22 +56,11 @@ func (i item) FilterValue() string { return "" }
 
 type itemDelegate struct{}
 
-func (d itemDelegate) Height() int  { return 1 }
-func (d itemDelegate) Spacing() int { return 0 }
-func (d itemDelegate) Update(msg tea.Msg, m *list.Model) tea.Cmd {
-	// log.Println("")
-	// log.Printf("itemDelegate Update m.Cursor: %+v", m.Cursor())
-	// log.Printf("itemDelegate Update m.SelectedItem: %+v", m.SelectedItem())
-	// log.Printf("itemDelegate Update m.Index(): %+v", m.Index())
-	// log.Printf("itemDelegate Update m.Items(): %+v", m.Items())
-	// switch msg {
-	// default:
-	// 	log.Printf("itemDelegate Update %+v", msg)
-	//
-	// }
-	return nil
-}
+func (d itemDelegate) Height() int                               { return 1 }
+func (d itemDelegate) Spacing() int                              { return 0 }
+func (d itemDelegate) Update(msg tea.Msg, m *list.Model) tea.Cmd { return nil }
 func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list.Item) {
+
 	i, ok := listItem.(item)
 	if !ok {
 		return
@@ -79,9 +68,18 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 	str := string(i)
 
 	fn := itemStyle.Render
+
+	if !directoryExists(str) {
+		fn = doesNotExistItemStyle.Render
+	}
+
 	if index == m.Index() {
 		fn = func(s string) string {
-			return selectedItemStyle.Render("> " + s)
+			if directoryExists(s) {
+				return selectedItemStyle.Render("> " + s)
+			} else {
+				return selectedAndDoesNotExistItemStyle.Render("> " + s)
+			}
 		}
 	}
 
@@ -102,6 +100,13 @@ type model struct {
 }
 
 type errMsg error
+
+func directoryExists(dir string) bool {
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		return false
+	}
+	return true
+}
 
 func savePathCmd(cursor int, path string) tea.Cmd {
 	return func() tea.Msg {
