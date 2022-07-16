@@ -36,8 +36,7 @@ type saveShellSourceMsg struct {
 // TODO Auto-removal for duplicates, non-existent paths, or both? (could be configurable)
 // TODO Insert new path at specific location
 // TODO Update path
-// TODO Make listHeight configurable
-const listHeight = 40
+const listHeight = 20
 
 var (
 	titleStyle                       = lipgloss.NewStyle().MarginLeft(2)
