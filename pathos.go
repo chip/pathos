@@ -3,10 +3,11 @@ package main
 import (
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/help"
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -32,6 +33,8 @@ type saveShellSourceMsg struct {
 	m model
 }
 
+type errMsg error
+
 // TODO Show color legend
 const listHeight = 20
 
@@ -52,7 +55,9 @@ type item string
 
 func (i item) FilterValue() string { return "" }
 
-type itemDelegate struct{}
+type itemDelegate struct {
+	keys *keys.KeyMap
+}
 
 func (d itemDelegate) Height() int                               { return 1 }
 func (d itemDelegate) Spacing() int                              { return 0 }
@@ -88,10 +93,58 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 	fmt.Fprint(w, fn(str))
 }
 
+type Styles struct {
+	Ellipsis lipgloss.Style
+
+	// Styling for the short help
+	ShortKey       lipgloss.Style
+	ShortDesc      lipgloss.Style
+	ShortSeparator lipgloss.Style
+
+	// Styling for the full help
+	FullKey       lipgloss.Style
+	FullDesc      lipgloss.Style
+	FullSeparator lipgloss.Style
+}
+
+func helpScreen() help.Model {
+	keyStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{
+		Light: "#909090",
+		Dark:  "#626262",
+	})
+
+	descStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{
+		Light: "#B2B2B2",
+		Dark:  "#4A4A4A",
+	})
+
+	sepStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{
+		Light: "#DDDADA",
+		Dark:  "#3C3C3C",
+	})
+
+	return help.Model{
+		ShortSeparator: " • ",
+		FullSeparator:  "    ",
+		Ellipsis:       "…",
+		Styles: help.Styles{
+			ShortKey:       keyStyle,
+			ShortDesc:      descStyle,
+			ShortSeparator: sepStyle,
+			Ellipsis:       sepStyle.Copy(),
+			FullKey:        keyStyle.Copy(),
+			FullDesc:       descStyle.Copy(),
+			FullSeparator:  sepStyle.Copy(),
+		},
+	}
+}
+
 type model struct {
+	keys KeyMap
+	// help string
+	help     help.Model
 	list     list.Model
 	items    []item
-	choice   string
 	quitting bool
 
 	textInput      textinput.Model
@@ -101,7 +154,34 @@ type model struct {
 	showPagination bool
 }
 
-type errMsg error
+func initialModel() model {
+	ti := setupTextInput()
+
+	items := createPaths()
+	duplicatePaths = findDuplicatePaths(items)
+
+	const defaultWidth = 20
+
+	l := list.New(items, itemDelegate{}, defaultWidth, listHeight)
+	l.Title = "PATHOS - CLI Manager of the PATH env variable"
+	l.SetShowHelp(false)
+	l.SetShowStatusBar(true)
+	l.SetFilteringEnabled(false)
+	l.Styles.Title = titleStyle
+	// l.Styles.HelpStyle = helpStyle
+
+	m := model{
+		keys: keys,
+		help: helpScreen(),
+		// help:           "H_E_L_P",
+		list:           l,
+		textInput:      ti,
+		err:            nil,
+		state:          listView,
+		showPagination: false,
+	}
+	return m
+}
 
 func directoryExists(dir string) bool {
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
@@ -160,6 +240,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.list.SetWidth(msg.Width)
+		// m.help.Width = msg.Width
 		return m, nil
 
 	case savePathMsg:
@@ -177,13 +258,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
-		switch keypress := msg.String(); keypress {
+		switch {
 
-		case "ctrl+c":
+		case key.Matches(msg, keys.Quit):
 			m.quitting = true
 			return m, tea.Quit
 
-		case "enter":
+		case key.Matches(msg, keys.Help):
+			m.help.ShowAll = !m.help.ShowAll
+
+		case key.Matches(msg, keys.Enter):
+
 			if m.state == inputView {
 				text := strings.TrimSpace(m.textInput.Value())
 				if text != "" {
@@ -192,26 +277,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					cmds = append(cmds, savePathCmd(cursor, value))
 					m.state = listView
 				}
-
-			} else {
-				i, ok := m.list.SelectedItem().(item)
-				log.Printf("case enter else %v, ok %v", i, ok)
-				if ok {
-					m.choice = string(i)
-				}
 			}
 
-		case "N":
+		case key.Matches(msg, keys.NewPath):
 			m.state = inputView
 			return m, nil
 
-		case "D":
+		case key.Matches(msg, keys.DeletePath):
 			if m.state == listView {
 				i := m.list.Index()
 				cmds = append(cmds, deletePathCmd(m, i))
 			}
 
-		case "S":
+		case key.Matches(msg, keys.SaveShellSource):
 			cmds = append(cmds, saveShellSourceCmd(m))
 
 		}
@@ -233,12 +311,27 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
+// 	helpView := m.help.View(m.keys)
+// 	height := 8 - strings.Count(status, "\n") - strings.Count(helpView, "\n")
+//
+// 	return "\n" + status + strings.Repeat("\n", height) + helpView
+// }
 func (m model) View() string {
+	helpView := m.help.View(m.keys)
+	// helpView := m.list.FullHelp()
+
 	switch m.state {
 	case inputView:
 		return m.textInput.View()
 	default:
-		return m.list.View()
+		// return m.list.View() + helpView
+		// v := m.list.View()
+		// fmt.Printf("View(): %+v", v)
+		// _, err := tea.LogToFile("%+v", v)
+		// if err != nil {
+		// 	log.Fatal("Couldn't LogToFile")
+		// }
+		return m.list.View() + helpView
 	}
 }
 
@@ -269,32 +362,6 @@ func setupTextInput() textinput.Model {
 	return ti
 }
 
-func initialModel() model {
-	ti := setupTextInput()
-
-	items := createPaths()
-	duplicatePaths = findDuplicatePaths(items)
-
-	const defaultWidth = 20
-
-	l := list.New(items, itemDelegate{}, defaultWidth, listHeight)
-	l.Title = "PATHOS - CLI Manager of the PATH env variable"
-	l.SetShowStatusBar(true)
-	l.SetFilteringEnabled(false)
-	l.Styles.Title = titleStyle
-	l.Styles.HelpStyle = helpStyle
-
-	m := model{
-		list:           l,
-		textInput:      ti,
-		err:            nil,
-		state:          listView,
-		showPagination: false,
-	}
-
-	return m
-}
-
 func duplicatePath(path string) bool {
 	_, isPresent := duplicatePaths[path]
 	return isPresent
@@ -323,17 +390,86 @@ func findDuplicatePaths(items []list.Item) map[string]struct{} {
 	return duplicates
 }
 
-func main() {
-	f, err := os.OpenFile("debug.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-	if err != nil {
-		log.Fatalf("error opening file: %v", err)
-	}
-	defer f.Close()
+// KeyMap defines a set of keybindings. To work for help it must satisfy
+// key.Map. It could also very easily be a map[string]key.Binding.
+type KeyMap struct {
+	Up              key.Binding
+	Down            key.Binding
+	Help            key.Binding
+	Quit            key.Binding
+	NewPath         key.Binding
+	DeletePath      key.Binding
+	SaveShellSource key.Binding
+	Enter           key.Binding
+}
 
-	log.SetOutput(f)
+// ShortHelp returns keybindings to be shown in the mini help view. It's part
+// of the key.Map interface.
+func (k KeyMap) ShortHelp() []key.Binding {
+	// fmt.Println("inside ShortHelp")
+	return []key.Binding{k.Help, k.Quit, k.NewPath}
+}
+
+func (k KeyMap) AdditionalShortHelpKeys() []key.Binding {
+	fmt.Println("inside AdditionalShortHelpKeys")
+	return []key.Binding{k.NewPath, k.DeletePath, k.SaveShellSource}
+}
+
+// FullHelp returns keybindings for the expanded help view. It's part of the
+// key.Map interface.
+func (k KeyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{k.Up, k.Down, k.NewPath, k.DeletePath, k.SaveShellSource}, // first column
+		{k.Help, k.Quit}, // second column
+	}
+}
+
+var keys = KeyMap{
+	Up: key.NewBinding(
+		key.WithKeys("up", "k"),
+		key.WithHelp("↑/k", "move up"),
+	),
+	Down: key.NewBinding(
+		key.WithKeys("down", "j"),
+		key.WithHelp("↓/j", "move down"),
+	),
+	Help: key.NewBinding(
+		key.WithKeys("?"),
+		key.WithHelp("?", "toggle help"),
+	),
+	Quit: key.NewBinding(
+		key.WithKeys("q", "esc", "ctrl+c"),
+		key.WithHelp("q", "quit"),
+	),
+	NewPath: key.NewBinding(
+		key.WithKeys("N"),
+		key.WithHelp("N", "Add new path"),
+	),
+	DeletePath: key.NewBinding(
+		key.WithKeys("D"),
+		key.WithHelp("D", "Delete path"),
+	),
+	SaveShellSource: key.NewBinding(
+		key.WithKeys("S"),
+		key.WithHelp("S", "Save paths to shell script"),
+	),
+	Enter: key.NewBinding(
+		key.WithKeys("enter"),
+	),
+}
+
+func main() {
+	if os.Getenv("HELP_DEBUG") != "" {
+		if f, err := tea.LogToFile("debug.log", "help"); err != nil {
+			fmt.Println("Couldn't open a file for logging:", err)
+			os.Exit(1)
+		} else {
+			defer f.Close()
+		}
+	}
 
 	if err := tea.NewProgram(initialModel()).Start(); err != nil {
-		fmt.Println("Error running program:", err)
+		fmt.Printf("Could not start program :(\n%v\n", err)
 		os.Exit(1)
 	}
 }
