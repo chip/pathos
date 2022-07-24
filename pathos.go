@@ -12,7 +12,9 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/knipferrc/teacup/help"
+
+	// "github.com/knipferrc/teacup/help"
+	"github.com/chip/pathos/help"
 )
 
 var duplicatePaths map[string]struct{}
