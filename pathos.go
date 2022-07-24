@@ -36,7 +36,7 @@ type saveShellSourceMsg struct {
 type errMsg error
 
 // TODO Show color legend
-const listHeight = 20
+const listHeight = 15
 
 var (
 	titleStyle                       = lipgloss.NewStyle().MarginLeft(2)
@@ -46,8 +46,6 @@ var (
 	selectedAndDoesNotExistItemStyle = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("160"))
 	duplicateItemStyle               = lipgloss.NewStyle().PaddingLeft(4).Foreground(lipgloss.Color("123")) // Xterm DarkSlateGray1
 	selectedAndDuplicateItemStyle    = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("123"))
-	paginationStyle                  = list.DefaultStyles().PaginationStyle.PaddingLeft(4)
-	helpStyle                        = list.DefaultStyles().HelpStyle.PaddingLeft(4).PaddingBottom(1)
 	quitTextStyle                    = lipgloss.NewStyle().Margin(1, 0, 2, 4)
 )
 
@@ -55,9 +53,7 @@ type item string
 
 func (i item) FilterValue() string { return "" }
 
-type itemDelegate struct {
-	keys *keys.KeyMap
-}
+type itemDelegate struct{}
 
 func (d itemDelegate) Height() int                               { return 1 }
 func (d itemDelegate) Spacing() int                              { return 0 }
@@ -93,55 +89,8 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 	fmt.Fprint(w, fn(str))
 }
 
-type Styles struct {
-	Ellipsis lipgloss.Style
-
-	// Styling for the short help
-	ShortKey       lipgloss.Style
-	ShortDesc      lipgloss.Style
-	ShortSeparator lipgloss.Style
-
-	// Styling for the full help
-	FullKey       lipgloss.Style
-	FullDesc      lipgloss.Style
-	FullSeparator lipgloss.Style
-}
-
-func helpScreen() help.Model {
-	keyStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{
-		Light: "#909090",
-		Dark:  "#626262",
-	})
-
-	descStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{
-		Light: "#B2B2B2",
-		Dark:  "#4A4A4A",
-	})
-
-	sepStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{
-		Light: "#DDDADA",
-		Dark:  "#3C3C3C",
-	})
-
-	return help.Model{
-		ShortSeparator: " • ",
-		FullSeparator:  "    ",
-		Ellipsis:       "…",
-		Styles: help.Styles{
-			ShortKey:       keyStyle,
-			ShortDesc:      descStyle,
-			ShortSeparator: sepStyle,
-			Ellipsis:       sepStyle.Copy(),
-			FullKey:        keyStyle.Copy(),
-			FullDesc:       descStyle.Copy(),
-			FullSeparator:  sepStyle.Copy(),
-		},
-	}
-}
-
 type model struct {
-	keys KeyMap
-	// help string
+	keys     KeyMap
 	help     help.Model
 	list     list.Model
 	items    []item
@@ -160,7 +109,7 @@ func initialModel() model {
 	items := createPaths()
 	duplicatePaths = findDuplicatePaths(items)
 
-	const defaultWidth = 20
+	const defaultWidth = 60
 
 	l := list.New(items, itemDelegate{}, defaultWidth, listHeight)
 	l.Title = "PATHOS - CLI Manager of the PATH env variable"
@@ -168,12 +117,10 @@ func initialModel() model {
 	l.SetShowStatusBar(true)
 	l.SetFilteringEnabled(false)
 	l.Styles.Title = titleStyle
-	// l.Styles.HelpStyle = helpStyle
 
 	m := model{
-		keys: keys,
-		help: helpScreen(),
-		// help:           "H_E_L_P",
+		keys:           keys,
+		help:           help.New(),
 		list:           l,
 		textInput:      ti,
 		err:            nil,
@@ -230,7 +177,8 @@ func saveShellSource(m model) (int, error) {
 }
 
 func (m model) Init() tea.Cmd {
-	return textinput.Blink
+	// return textinput.Blink
+	return tea.EnterAltScreen
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -240,7 +188,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.list.SetWidth(msg.Width)
-		// m.help.Width = msg.Width
 		return m, nil
 
 	case savePathMsg:
@@ -266,6 +213,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case key.Matches(msg, keys.Help):
 			m.help.ShowAll = !m.help.ShowAll
+			m.help, cmd = m.help.Update(msg)
+			cmds = append(cmds, cmd)
 
 		case key.Matches(msg, keys.Enter):
 
@@ -311,26 +260,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-// 	helpView := m.help.View(m.keys)
-// 	height := 8 - strings.Count(status, "\n") - strings.Count(helpView, "\n")
-//
-// 	return "\n" + status + strings.Repeat("\n", height) + helpView
-// }
 func (m model) View() string {
-	helpView := m.help.View(m.keys)
-	// helpView := m.list.FullHelp()
+	helpView := m.help.ShortHelpView(m.keys.ShortHelp())
+
+	if m.help.ShowAll {
+		helpView = m.help.FullHelpView(m.keys.FullHelp())
+	}
 
 	switch m.state {
 	case inputView:
 		return m.textInput.View()
 	default:
-		// return m.list.View() + helpView
-		// v := m.list.View()
-		// fmt.Printf("View(): %+v", v)
-		// _, err := tea.LogToFile("%+v", v)
-		// if err != nil {
-		// 	log.Fatal("Couldn't LogToFile")
-		// }
 		return m.list.View() + helpView
 	}
 }
@@ -390,9 +330,9 @@ func findDuplicatePaths(items []list.Item) map[string]struct{} {
 	return duplicates
 }
 
-// KeyMap defines a set of keybindings. To work for help it must satisfy
-// key.Map. It could also very easily be a map[string]key.Binding.
-type KeyMap struct {
+// // KeyMap defines a set of keybindings. To work for help it must satisfy
+// // key.Map. It could also very easily be a map[string]key.Binding.
+type HelpKeyMap struct {
 	Up              key.Binding
 	Down            key.Binding
 	Help            key.Binding
@@ -403,59 +343,68 @@ type KeyMap struct {
 	Enter           key.Binding
 }
 
-// ShortHelp returns keybindings to be shown in the mini help view. It's part
-// of the key.Map interface.
-func (k KeyMap) ShortHelp() []key.Binding {
-	// fmt.Println("inside ShortHelp")
-	return []key.Binding{k.Help, k.Quit, k.NewPath}
-}
-
-func (k KeyMap) AdditionalShortHelpKeys() []key.Binding {
-	fmt.Println("inside AdditionalShortHelpKeys")
-	return []key.Binding{k.NewPath, k.DeletePath, k.SaveShellSource}
-}
-
-// FullHelp returns keybindings for the expanded help view. It's part of the
-// key.Map interface.
-func (k KeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{
-		{k.Up, k.Down, k.NewPath, k.DeletePath, k.SaveShellSource}, // first column
-		{k.Help, k.Quit}, // second column
-	}
-}
-
-var keys = KeyMap{
+var keys = HelpKeyMap{
 	Up: key.NewBinding(
-		key.WithKeys("up", "k"),
+		key.WithKeys("k", "up"),
 		key.WithHelp("↑/k", "move up"),
 	),
 	Down: key.NewBinding(
-		key.WithKeys("down", "j"),
+		key.WithKeys("j", "down"),
 		key.WithHelp("↓/j", "move down"),
 	),
 	Help: key.NewBinding(
 		key.WithKeys("?"),
-		key.WithHelp("?", "toggle help"),
+		key.WithHelp("?", "help"),
 	),
 	Quit: key.NewBinding(
 		key.WithKeys("q", "esc", "ctrl+c"),
-		key.WithHelp("q", "quit"),
+		key.WithHelp("q", "quitsies"),
 	),
 	NewPath: key.NewBinding(
 		key.WithKeys("N"),
-		key.WithHelp("N", "Add new path"),
+		key.WithHelp("N", "New path"),
 	),
 	DeletePath: key.NewBinding(
 		key.WithKeys("D"),
-		key.WithHelp("D", "Delete path"),
+		key.WithHelp("D", "Delete"),
 	),
 	SaveShellSource: key.NewBinding(
 		key.WithKeys("S"),
-		key.WithHelp("S", "Save paths to shell script"),
+		key.WithHelp("S", "Save"),
 	),
 	Enter: key.NewBinding(
 		key.WithKeys("enter"),
 	),
+}
+
+type KeyMap interface {
+
+	// ShortHelp returns a slice of bindings to be displayed in the short
+	// version of the help. The help bubble will render help in the order in
+	// which the help items are returned here.
+	ShortHelp() []key.Binding
+
+	// MoreHelp returns an extended group of help items, grouped by columns.
+	// The help bubble will render the help in the order in which the help
+	// items are returned here.
+	FullHelp() [][]key.Binding
+}
+
+// ShortHelp returns keybindings to be shown in the mini help view. It's part
+// of the key.Map interface.
+func (k HelpKeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{k.Help, k.Quit}
+}
+
+// FullHelp returns keybindings for the expanded help view. It's part of the
+// key.Map interface.
+func (k HelpKeyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{ // each line represents a help column
+		// {k.Up, k.Down},
+		{k.NewPath, k.DeletePath},
+		// {k.SaveShellSource},
+		// {k.Help, k.Quit},
+	}
 }
 
 func main() {
@@ -468,6 +417,7 @@ func main() {
 		}
 	}
 
+	// p.ExitAltScreen()
 	if err := tea.NewProgram(initialModel()).Start(); err != nil {
 		fmt.Printf("Could not start program :(\n%v\n", err)
 		os.Exit(1)
