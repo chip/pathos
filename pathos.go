@@ -6,12 +6,13 @@ import (
 	"os"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/help"
+	// "github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/knipferrc/teacup/help"
 )
 
 var duplicatePaths map[string]struct{}
