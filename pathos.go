@@ -6,17 +6,15 @@ import (
 	"os"
 	"strings"
 
-	// "github.com/charmbracelet/bubbles/help"
+	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-
 	// "github.com/kr/pretty"
-	"github.com/kr/pretty"
 	// "github.com/knipferrc/teacup/help"
-	"github.com/chip/pathos/help"
+	// "github.com/chip/pathos/help"
 )
 
 var duplicatePaths map[string]struct{}
@@ -39,7 +37,6 @@ type saveShellSourceMsg struct {
 }
 
 type errMsg error
-type showHelpMsg bool
 
 // TODO Show color legend
 const listHeight = 15
@@ -97,7 +94,7 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 
 type model struct {
 	keys     HelpKeyMap
-	help     help.Bubble
+	help     help.Model
 	list     list.Model
 	items    []item
 	quitting bool
@@ -119,10 +116,18 @@ func initialModel() model {
 
 	l := list.New(items, itemDelegate{}, defaultWidth, listHeight)
 	l.Title = "PATHOS - CLI Manager of the PATH env variable"
-	l.SetShowHelp(false)
+	l.SetShowHelp(true)
 	l.SetShowStatusBar(true)
-	l.SetFilteringEnabled(false)
+	// l.SetFilteringEnabled(true)
 	l.Styles.Title = titleStyle
+
+	l.AdditionalFullHelpKeys = func() []key.Binding {
+		return []key.Binding{
+			keys.NewPath,
+			keys.DeletePath,
+			keys.SaveShellSource,
+		}
+	}
 
 	m := model{
 		keys:           keys,
@@ -158,13 +163,6 @@ func deletePathCmd(m model, id int) tea.Cmd {
 func saveShellSourceCmd(m model) tea.Cmd {
 	return func() tea.Msg {
 		return saveShellSourceMsg{m: m}
-	}
-}
-
-func showHelpMsgCmd(showHelp bool) tea.Cmd {
-	fmt.Println("showHelpMsgCmd:", showHelp)
-	return func() tea.Msg {
-		return showHelpMsg(showHelp)
 	}
 }
 
@@ -217,12 +215,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		saveShellSource(m)
 		return m, nil
 
-	case showHelpMsg:
-		fmt.Println("case showHelpMsg msg:", msg)
-		fmt.Printf("case showHelpMsg m.help: %+ v", pretty.Formatter(m.help))
-		// fmt.Printf("*** %+ v", pretty.Formatter(m.help))
-		return m, nil
-
 	case tea.KeyMsg:
 		switch {
 
@@ -231,10 +223,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 
 		case key.Matches(msg, keys.Help):
-			// m.help.ShowAll = !m.help.ShowAll
-			// m.help.
-			fmt.Println("key matches Help")
-			cmds = append(cmds, showHelpMsgCmd(false))
+			var show = m.list.Help.ShowAll
+			fmt.Println("case keys.Help show:", show)
+			m.list.Help.ShowAll = !show
+			m.list.SetShowHelp(!show)
 
 		case key.Matches(msg, keys.Enter):
 
@@ -286,13 +278,12 @@ func (m model) View() string {
 		return m.textInput.View()
 	default:
 
-		// fmt.Printf("b.help.Bubble.Active: %t", m.help)
-		// b.help.SetIsActive(false)
-		// if m.helpModel. {
-		// 	return m.list.View() + m.help.View()
-		// } else {
-		return m.list.View() + m.help.View()
+		// helpView := m.list.Help.ShortHelpView(keys.ShortHelp())
+		// fmt.Println("^^^", m.list.Help.ShowAll)
+		// if m.list.Help.ShowAll {
+		// 	helpView = m.list.Help.FullHelpView(keys.FullHelp())
 		// }
+		return m.list.View() // + m.list.Help.View()
 	}
 }
 
@@ -354,8 +345,8 @@ func findDuplicatePaths(items []list.Item) map[string]struct{} {
 // // KeyMap defines a set of keybindings. To work for help it must satisfy
 // // key.Map. It could also very easily be a map[string]key.Binding.
 type HelpKeyMap struct {
-	Up              key.Binding
-	Down            key.Binding
+	// Up              key.Binding
+	// Down            key.Binding
 	Help            key.Binding
 	Quit            key.Binding
 	NewPath         key.Binding
@@ -365,68 +356,54 @@ type HelpKeyMap struct {
 }
 
 var keys = HelpKeyMap{
-	Up: key.NewBinding(
-		key.WithKeys("k", "up"),
-		key.WithHelp("↑/k", "move up"),
-	),
-	Down: key.NewBinding(
-		key.WithKeys("j", "down"),
-		key.WithHelp("↓/j", "move down"),
-	),
-	Help: key.NewBinding(
-		key.WithKeys("?"),
-		key.WithHelp("?", "help"),
-	),
-	Quit: key.NewBinding(
-		key.WithKeys("q", "esc", "ctrl+c"),
-		key.WithHelp("q", "quitsies"),
-	),
+	// Up: key.NewBinding(
+	// 	key.WithKeys("k", "up"),
+	// 	key.WithHelp("↑/k ...", "move up"),
+	// ),
+	// Down: key.NewBinding(
+	// 	key.WithKeys("j", "down"),
+	// 	key.WithHelp("↓/j ...", "move down"),
+	// ),
+	// Help: key.NewBinding(
+	// 	key.WithKeys("?"),
+	// 	key.WithHelp("? ...", "help"),
+	// ),
+	// Quit: key.NewBinding(
+	// 	key.WithKeys("q", "esc", "ctrl+c"),
+	// 	key.WithHelp("q ...", "quitsies"),
+	// ),
 	NewPath: key.NewBinding(
 		key.WithKeys("N"),
-		key.WithHelp("N", "New path"),
+		key.WithHelp("N ...", "New path"),
 	),
 	DeletePath: key.NewBinding(
 		key.WithKeys("D"),
-		key.WithHelp("D", "Delete"),
+		key.WithHelp("D ...", "Delete"),
 	),
 	SaveShellSource: key.NewBinding(
 		key.WithKeys("S"),
-		key.WithHelp("S", "Save"),
+		key.WithHelp("S ...", "Save"),
 	),
-	Enter: key.NewBinding(
-		key.WithKeys("enter"),
-	),
-}
-
-type KeyMap interface {
-
-	// ShortHelp returns a slice of bindings to be displayed in the short
-	// version of the help. The help bubble will render help in the order in
-	// which the help items are returned here.
-	ShortHelp() []key.Binding
-
-	// MoreHelp returns an extended group of help items, grouped by columns.
-	// The help bubble will render the help in the order in which the help
-	// items are returned here.
-	FullHelp() [][]key.Binding
 }
 
 // ShortHelp returns keybindings to be shown in the mini help view. It's part
 // of the key.Map interface.
-func (k HelpKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Help, k.Quit}
-}
+// func (k HelpKeyMap) ShortHelp() []key.Binding {
+// 	fmt.Println("ShortHelp")
+// 	return []key.Binding{k.Quit}
+// }
 
 // FullHelp returns keybindings for the expanded help view. It's part of the
 // key.Map interface.
-func (k HelpKeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{ // each line represents a help column
-		// {k.Up, k.Down},
-		{k.NewPath, k.DeletePath},
-		// {k.SaveShellSource},
-		// {k.Help, k.Quit},
-	}
-}
+// func (k HelpKeyMap) FullHelp() [][]key.Binding {
+// 	fmt.Println("FullHelp")
+// 	return [][]key.Binding{ // each line represents a help column
+// 		// {k.Up, k.Down},
+// 		{k.NewPath, k.DeletePath},
+// 		{k.SaveShellSource},
+// 		// {k.Help, k.Quit},
+// 	}
+// }
 
 func main() {
 	if os.Getenv("HELP_DEBUG") != "" {
@@ -438,17 +415,6 @@ func main() {
 		}
 	}
 
-	// m := initialModel()
-	// fmt.Printf("m.help.Bubble:\n%+v", m.help)
-	// fmt.Printf("%+ v", m.help)
-	// fmt.Printf("%+ v", pretty.Formatter(m.help))
-	// fmt.Printf("%+ v", m.help.View())
-	//
-	// for key, value := range m.help.Bubble.lines {
-	// 	fmt.Printf("key %d, value: %s", key, value)
-	// }
-	// os.Exit(1)
-	// p.ExitAltScreen()
 	if err := tea.NewProgram(initialModel()).Start(); err != nil {
 		fmt.Printf("Could not start program :(\n%v\n", err)
 		os.Exit(1)
