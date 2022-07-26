@@ -13,6 +13,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
+	// "github.com/kr/pretty"
+	"github.com/kr/pretty"
 	// "github.com/knipferrc/teacup/help"
 	"github.com/chip/pathos/help"
 )
@@ -37,6 +39,7 @@ type saveShellSourceMsg struct {
 }
 
 type errMsg error
+type showHelpMsg bool
 
 // TODO Show color legend
 const listHeight = 15
@@ -93,8 +96,8 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 }
 
 type model struct {
-	keys     KeyMap
-	help     help.Model
+	keys     HelpKeyMap
+	help     help.Bubble
 	list     list.Model
 	items    []item
 	quitting bool
@@ -158,6 +161,13 @@ func saveShellSourceCmd(m model) tea.Cmd {
 	}
 }
 
+func showHelpMsgCmd(showHelp bool) tea.Cmd {
+	fmt.Println("showHelpMsgCmd:", showHelp)
+	return func() tea.Msg {
+		return showHelpMsg(showHelp)
+	}
+}
+
 func saveShellSource(m model) (int, error) {
 	s := []string{}
 	for _, listItem := range m.list.Items() {
@@ -207,6 +217,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		saveShellSource(m)
 		return m, nil
 
+	case showHelpMsg:
+		fmt.Println("case showHelpMsg msg:", msg)
+		fmt.Printf("case showHelpMsg m.help: %+ v", pretty.Formatter(m.help))
+		// fmt.Printf("*** %+ v", pretty.Formatter(m.help))
+		return m, nil
+
 	case tea.KeyMsg:
 		switch {
 
@@ -215,9 +231,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 
 		case key.Matches(msg, keys.Help):
-			m.help.ShowAll = !m.help.ShowAll
-			m.help, cmd = m.help.Update(msg)
-			cmds = append(cmds, cmd)
+			// m.help.ShowAll = !m.help.ShowAll
+			// m.help.
+			fmt.Println("key matches Help")
+			cmds = append(cmds, showHelpMsgCmd(false))
 
 		case key.Matches(msg, keys.Enter):
 
@@ -264,17 +281,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
-	helpView := m.help.ShortHelpView(m.keys.ShortHelp())
-
-	if m.help.ShowAll {
-		helpView = m.help.FullHelpView(m.keys.FullHelp())
-	}
-
 	switch m.state {
 	case inputView:
 		return m.textInput.View()
 	default:
-		return m.list.View() + helpView
+
+		// fmt.Printf("b.help.Bubble.Active: %t", m.help)
+		// b.help.SetIsActive(false)
+		// if m.helpModel. {
+		// 	return m.list.View() + m.help.View()
+		// } else {
+		return m.list.View() + m.help.View()
+		// }
 	}
 }
 
@@ -420,6 +438,16 @@ func main() {
 		}
 	}
 
+	// m := initialModel()
+	// fmt.Printf("m.help.Bubble:\n%+v", m.help)
+	// fmt.Printf("%+ v", m.help)
+	// fmt.Printf("%+ v", pretty.Formatter(m.help))
+	// fmt.Printf("%+ v", m.help.View())
+	//
+	// for key, value := range m.help.Bubble.lines {
+	// 	fmt.Printf("key %d, value: %s", key, value)
+	// }
+	// os.Exit(1)
 	// p.ExitAltScreen()
 	if err := tea.NewProgram(initialModel()).Start(); err != nil {
 		fmt.Printf("Could not start program :(\n%v\n", err)
