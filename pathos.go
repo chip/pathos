@@ -104,6 +104,14 @@ type model struct {
 	showPagination bool
 }
 
+func additionalKeys() []key.Binding {
+	return []key.Binding{
+		keys.NewPath,
+		keys.DeletePath,
+		keys.SaveShellSource,
+	}
+}
+
 func initialModel() model {
 	ti := setupTextInput()
 
@@ -119,13 +127,8 @@ func initialModel() model {
 	// l.SetFilteringEnabled(true)
 	l.Styles.Title = titleStyle
 
-	l.AdditionalFullHelpKeys = func() []key.Binding {
-		return []key.Binding{
-			keys.NewPath,
-			keys.DeletePath,
-			keys.SaveShellSource,
-		}
-	}
+	l.AdditionalFullHelpKeys = additionalKeys
+	l.AdditionalShortHelpKeys = additionalKeys
 
 	m := model{
 		keys:           keys,
