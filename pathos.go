@@ -272,12 +272,7 @@ func (m model) View() string {
 		return m.textInput.View()
 	default:
 
-		// helpView := m.list.Help.ShortHelpView(keys.ShortHelp())
-		// fmt.Println("^^^", m.list.Help.ShowAll)
-		// if m.list.Help.ShowAll {
-		// 	helpView = m.list.Help.FullHelpView(keys.FullHelp())
-		// }
-		return m.list.View() // + m.list.Help.View()
+		return m.list.View()
 	}
 }
 
@@ -336,11 +331,7 @@ func findDuplicatePaths(items []list.Item) map[string]struct{} {
 	return duplicates
 }
 
-// // KeyMap defines a set of keybindings. To work for help it must satisfy
-// // key.Map. It could also very easily be a map[string]key.Binding.
 type HelpKeyMap struct {
-	// Up              key.Binding
-	// Down            key.Binding
 	Help            key.Binding
 	Quit            key.Binding
 	NewPath         key.Binding
