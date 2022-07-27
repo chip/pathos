@@ -120,7 +120,8 @@ func initialModel() model {
 	const defaultWidth = 60
 
 	l := list.New(items, itemDelegate{}, defaultWidth, listHeight)
-	l.Title = "PATHOS - CLI Manager of the PATH env variable"
+	l.Title = "pathos - CLI for editing a PATH env variable"
+
 	l.SetShowHelp(true)
 	l.SetShowStatusBar(true)
 	l.SetFilteringEnabled(false)
