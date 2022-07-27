@@ -176,7 +176,9 @@ func saveShellSource(m model) (int, error) {
 		}
 	}
 	data := "export PATH=" + strings.Join(s, ":")
-	filename := "pathos.sh"
+
+	HOME := os.Getenv("HOME")
+	filename := HOME + "/pathos.sh"
 
 	file, err := os.Create(filename)
 	if err != nil {
