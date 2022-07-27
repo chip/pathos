@@ -12,9 +12,6 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	// "github.com/kr/pretty"
-	// "github.com/knipferrc/teacup/help"
-	// "github.com/chip/pathos/help"
 )
 
 var duplicatePaths map[string]struct{}
@@ -188,7 +185,6 @@ func saveShellSource(m model) (int, error) {
 }
 
 func (m model) Init() tea.Cmd {
-	// return textinput.Blink
 	return tea.EnterAltScreen
 }
 
@@ -221,12 +217,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, keys.Quit):
 			m.quitting = true
 			return m, tea.Quit
-
-		case key.Matches(msg, keys.Help):
-			var show = m.list.Help.ShowAll
-			fmt.Println("case keys.Help show:", show)
-			m.list.Help.ShowAll = !show
-			m.list.SetShowHelp(!show)
 
 		case key.Matches(msg, keys.Enter):
 
@@ -385,25 +375,6 @@ var keys = HelpKeyMap{
 		key.WithHelp("S ...", "Save"),
 	),
 }
-
-// ShortHelp returns keybindings to be shown in the mini help view. It's part
-// of the key.Map interface.
-// func (k HelpKeyMap) ShortHelp() []key.Binding {
-// 	fmt.Println("ShortHelp")
-// 	return []key.Binding{k.Quit}
-// }
-
-// FullHelp returns keybindings for the expanded help view. It's part of the
-// key.Map interface.
-// func (k HelpKeyMap) FullHelp() [][]key.Binding {
-// 	fmt.Println("FullHelp")
-// 	return [][]key.Binding{ // each line represents a help column
-// 		// {k.Up, k.Down},
-// 		{k.NewPath, k.DeletePath},
-// 		{k.SaveShellSource},
-// 		// {k.Help, k.Quit},
-// 	}
-// }
 
 func main() {
 	if os.Getenv("HELP_DEBUG") != "" {
