@@ -124,7 +124,7 @@ func initialModel() model {
 	l.Title = "PATHOS - CLI Manager of the PATH env variable"
 	l.SetShowHelp(true)
 	l.SetShowStatusBar(true)
-	// l.SetFilteringEnabled(true)
+	l.SetFilteringEnabled(false)
 	l.Styles.Title = titleStyle
 
 	l.AdditionalFullHelpKeys = additionalKeys
