@@ -91,11 +91,10 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 }
 
 type model struct {
-	keys     HelpKeyMap
-	help     help.Model
-	list     list.Model
-	items    []item
-	quitting bool
+	keys  HelpKeyMap
+	help  help.Model
+	list  list.Model
+	items []item
 
 	textInput      textinput.Model
 	msg            tea.Msg
@@ -219,7 +218,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 
 		case key.Matches(msg, keys.Quit):
-			m.quitting = true
 			return m, tea.Quit
 
 		case key.Matches(msg, keys.Enter):
