@@ -346,33 +346,21 @@ type HelpKeyMap struct {
 }
 
 var keys = HelpKeyMap{
-	// Up: key.NewBinding(
-	// 	key.WithKeys("k", "up"),
-	// 	key.WithHelp("↑/k ...", "move up"),
-	// ),
-	// Down: key.NewBinding(
-	// 	key.WithKeys("j", "down"),
-	// 	key.WithHelp("↓/j ...", "move down"),
-	// ),
-	// Help: key.NewBinding(
-	// 	key.WithKeys("?"),
-	// 	key.WithHelp("? ...", "help"),
-	// ),
-	// Quit: key.NewBinding(
-	// 	key.WithKeys("q", "esc", "ctrl+c"),
-	// 	key.WithHelp("q ...", "quitsies"),
-	// ),
+	Enter: key.NewBinding(
+		key.WithKeys("enter"),
+		key.WithHelp("enter", "submit new path"),
+	),
 	NewPath: key.NewBinding(
 		key.WithKeys("N"),
-		key.WithHelp("N ...", "New path"),
+		key.WithHelp("N", "new"),
 	),
 	DeletePath: key.NewBinding(
 		key.WithKeys("D"),
-		key.WithHelp("D ...", "Delete"),
+		key.WithHelp("D", "delete"),
 	),
 	SaveShellSource: key.NewBinding(
 		key.WithKeys("S"),
-		key.WithHelp("S ...", "Save"),
+		key.WithHelp("S", "save paths"),
 	),
 }
 
