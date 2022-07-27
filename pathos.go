@@ -38,14 +38,15 @@ type errMsg error
 // TODO Show color legend
 const listHeight = 35
 
+// Colors: https://www.ditig.com/256-colors-cheat-sheet
 var (
 	titleStyle                       = lipgloss.NewStyle().MarginLeft(2)
 	itemStyle                        = lipgloss.NewStyle().PaddingLeft(4)
-	selectedItemStyle                = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("170")) // Xterm Orchid
-	doesNotExistItemStyle            = lipgloss.NewStyle().PaddingLeft(4).Foreground(lipgloss.Color("160")) // Xterm Red3
-	selectedAndDoesNotExistItemStyle = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("160"))
-	duplicateItemStyle               = lipgloss.NewStyle().PaddingLeft(4).Foreground(lipgloss.Color("123")) // Xterm DarkSlateGray1
-	selectedAndDuplicateItemStyle    = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("123"))
+	selectedItemStyle                = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("11")) // Xterm Yellow (SYSTEM)
+	doesNotExistItemStyle            = lipgloss.NewStyle().PaddingLeft(4).Foreground(lipgloss.Color("9"))  // Xterm Red (SYSTEM)
+	selectedAndDoesNotExistItemStyle = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("9"))
+	duplicateItemStyle               = lipgloss.NewStyle().PaddingLeft(4).Foreground(lipgloss.Color("14")) // Xterm Aqua (SYSTEM)
+	selectedAndDuplicateItemStyle    = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("14"))
 	quitTextStyle                    = lipgloss.NewStyle().Margin(1, 0, 2, 4)
 )
 
