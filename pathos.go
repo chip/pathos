@@ -36,7 +36,7 @@ type saveShellSourceMsg struct {
 type errMsg error
 
 // TODO Show color legend
-const listHeight = 15
+const listHeight = 35
 
 var (
 	titleStyle                       = lipgloss.NewStyle().MarginLeft(2)
