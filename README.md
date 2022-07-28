@@ -5,7 +5,7 @@
 ![pathos DEMO](assets/demo.gif "pathos DEMO")
 
 ## Installation
-    go get github.com/chip/pathos@latest
+    go install github.com/chip/pathos@latest
 
 ## IMPORTANT
 
