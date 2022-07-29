@@ -1,19 +1,40 @@
 # pathos - CLI for editing a PATH env variable
 
+## Background
+
+If you're like me, you might have a number of `export PATH` statements
+littering your shell resource file (e.g., `.zshrc`, `.bashrc`, etc). Over time,
+many directory entries get added and revised. Those that remain eventually
+become unnecessary, are mistakenly duplicated, or represent directories that no
+longer exist on the system. This is my attempt at cleaning up `PATH`
+environment variable. Hopefully, others will find this to be useful.
+
 ## Demo
 
 ![pathos DEMO](assets/demo.gif "pathos DEMO")
+
+### Built with the following:
+
+  * [Go](https://go.dev/)
+  * [Bubble Tea](https://github.com/charmbracelet/bubbletea)
+  * [Bubbles](https://github.com/charmbracelet/bubbles)
+  * [Lip Gloss](https://github.com/charmbracelet/lipgloss)
 
 ## Installation
     go install github.com/chip/pathos@latest
 
 ## IMPORTANT
 
-Once you have added or removed path enties, this app will save a shell script
-to `$HOME/pathos.sh`, which **MUST BE SOURCED** to take effect within your
+Be sure to save your changes with `S` *(uppercase letter S)* before quitting
+`pathos`, as **changes will not be saved automatically**.
+
+Each time you save your changes to the directory list, `pathos` will build a
+revised `export $PATH` statement that is written to `$HOME/pathos.sh`.
+
+To use the new PATH, `~/pathos.sh` **MUST BE SOURCED** to take effect within your
 shell.
 
-    source ~/pathos.sh
+    source $HOME/pathos.sh
 
 ## Navigation
 
