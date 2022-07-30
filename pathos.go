@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"strings"
 
@@ -209,6 +210,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case deletePathMsg:
+
 		m.list.RemoveItem(int(msg))
 		duplicatePaths = findDuplicatePaths(m.list.Items())
 		return m, nil
@@ -366,6 +368,7 @@ func main() {
 			fmt.Println("Couldn't open a file for logging:", err)
 			os.Exit(1)
 		} else {
+			log.SetOutput(f)
 			defer f.Close()
 		}
 	}
