@@ -1,5 +1,13 @@
 # pathos - CLI for editing a PATH env variable
 
+## Ruby Version
+
+[chip/pathos.rb](https://github.com/chip/pathos.rb)
+
+## Go Version
+
+This is the Go version.
+
 ## Background
 
 If you're like me, you might have a number of `export PATH` statements
