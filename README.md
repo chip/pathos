@@ -1,8 +1,14 @@
 # pathos - CLI for editing a PATH env variable
 
-## Ruby Version
+## For the Ruby version
 
-[chip/pathos.rb](https://github.com/chip/pathos.rb)
+[Pathos Demo on Github](https://github.com/chip/pathos-demo)
+
+<a href="https://chipcastledotcom.gumroad.com/l/pathos" alt="Buy Pathos on Gumroad">
+    <img src="./assets/gumroad.webp" width="50%" height="50%">
+</a>
+
+## ----------------------------------------------------------------------------
 
 ## Go Version
 
